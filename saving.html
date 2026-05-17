@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salary & Expense Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            finBg: '#F8FAFC',
+            finSurface: '#FFFFFF',
+            finText: '#0F172A',
+            finMuted: '#64748B',
+            finBorder: '#E2E8F0',
+            finSuccess: '#16A34A',
+            finDanger: '#DC2626',
+            finPrimary: '#4F46E5'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-finBg text-finText min-h-screen font-sans antialiased p-4">
+
+  <!-- INITIAL SCREEN -->
+  <div id="initialScreen" class="max-w-md mx-auto mt-20 bg-finSurface border border-finBorder rounded-xl p-6 shadow-sm hidden">
+    <h1 class="text-xl font-bold mb-6 text-center">Setup Your Tracker</h1>
+    
+    <div class="mb-6 pb-6 border-b border-finBorder">
+      <label class="block text-sm font-bold text-finMuted uppercase mb-2">Option 1: Enter Base Salary</label>
+      <div class="flex gap-2">
+        <input type="number" id="initSalaryInput" placeholder="Enter total salary Amount" class="flex-1 border border-finBorder rounded-lg p-2.5 text-sm focus:outline-none focus:border-finPrimary">
+        <button id="startFreshBtn" class="bg-finPrimary text-white font-semibold px-4 rounded-lg text-sm hover:bg-indigo-700 transition">Start</button>
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-bold text-finMuted uppercase mb-2">Option 2: Upload Saved File</label>
+      <input type="file" id="fileInput" accept=".json" class="w-full text-sm text-finMuted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-finPrimary hover:file:bg-indigo-100 cursor-pointer">
+    </div>
+  </div>
+
+  <!-- MAIN APP WRAPPER -->
+  <div id="mainApp" class="max-w-2xl mx-auto hidden">
+    
+    <!-- Top Bar: Metrics & Backup Tools -->
+    <header class="bg-finSurface border border-finBorder rounded-xl p-4 shadow-sm mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+      <div class="flex gap-6 flex-wrap">
+        <!-- Interactive Dropdown Income Display -->
+        <div class="relative cursor-pointer select-none group" id="incomeDisplayContainer" onclick="toggleIncomeBreakdown()">
+          <div class="flex items-center gap-1">
+            <p class="text-xs font-bold text-finMuted uppercase">Total Income</p>
+            <svg class="w-3 h-3 text-finMuted transform transition-transform" id="dropdownArrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
+          </div>
+          <p id="totalSalaryDisplay" class="text-lg font-black text-finText">₹0</p>
+          
+          <!-- Dropdown Popover Panel -->
+          <div id="incomeDropdown" class="absolute left-0 mt-1 bg-finSurface border border-finBorder rounded-lg p-3 shadow-lg hidden z-10 min-w-[200px] text-xs space-y-1">
+            <div class="flex justify-between text-finMuted"><span>Base Salary:</span> <span id="breakdownBase" class="font-semibold text-finText">₹0</span></div>
+            <div class="flex justify-between text-finMuted"><span>Extra Income:</span> <span id="breakdownExtra" class="font-semibold text-finSuccess">+₹0</span></div>
+            <div class="border-t border-finBorder my-1 pt-1 flex justify-between font-bold text-finText"><span>Total:</span> <span id="breakdownTotal">₹0</span></div>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-xs font-bold text-finMuted uppercase">Total Expenses</p>
+          <p id="totalExpensesDisplay" class="text-lg font-black text-finDanger">₹0</p>
+        </div>
+        <div>
+          <p class="text-xs font-bold text-finMuted uppercase">Remaining Balance</p>
+          <p id="remainingBalanceDisplay" class="text-lg font-black text-finSuccess">₹0</p>
+        </div>
+      </div>
+
+      <div class="flex gap-2 shrink-0">
+        <button id="openIncomeModalBtn" class="bg-finSuccess hover:bg-emerald-700 text-white font-bold text-xs py-2 px-3 rounded-lg transition tracking-wide shadow-sm">
+          + INCOME
+        </button>
+        <button id="downloadBtn" class="bg-finBg hover:bg-slate-200 border border-finBorder text-finText font-bold text-xs py-2 px-3 rounded-lg transition tracking-wide">
+          DOWNLOAD
+        </button>
+        <button id="createNewBtn" class="text-finPrimary hover:bg-indigo-50 border border-transparent text-xs font-bold py-2 px-3 rounded-lg transition">
+          NEW
+        </button>
+      </div>
+    </header>
+
+    <!-- Expense Entry Form -->
+    <section class="bg-finSurface border border-finBorder rounded-xl p-5 shadow-sm mb-6">
+      <h2 id="formTitle" class="text-base font-bold mb-4 tracking-tight">Add New Entry</h2>
+      <form id="entryForm" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <input type="hidden" id="editId">
+        <div>
+          <label class="block text-xs font-bold text-finMuted uppercase tracking-wider mb-1">Amount (₹)</label>
+          <input type="number" id="amount" required class="w-full border border-finBorder rounded-lg p-2 text-sm focus:outline-none focus:border-finPrimary bg-finBg">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-finMuted uppercase tracking-wider mb-1">What For</label>
+          <input type="text" id="description" required placeholder="e.g., Groceries" class="w-full border border-finBorder rounded-lg p-2 text-sm focus:outline-none focus:border-finPrimary bg-finBg">
+        </div>
+        <div class="flex items-end">
+          <button type="submit" id="submitBtn" class="w-full bg-finPrimary text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition shadow-sm text-sm">
+            Save Entry
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- History Logs -->
+    <section class="bg-finSurface border border-finBorder rounded-xl shadow-sm overflow-hidden">
+      <div class="p-4 border-b border-finBorder">
+        <h2 class="text-base font-bold tracking-tight">All Entries</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-finBg border-b border-finBorder text-xs uppercase tracking-wider font-bold text-finMuted">
+              <th class="p-3">What For</th>
+              <th class="p-3">Amount</th>
+              <th class="p-3">Date & Time</th>
+              <th class="p-3 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="logsTableBody" class="divide-y divide-finBorder text-sm">
+            <!-- Dynamic Injection -->
+          </tbody>
+        </table>
+      </div>
+      <div id="emptyState" class="p-10 text-center text-finMuted font-medium hidden">
+        No entries recorded.
+      </div>
+    </section>
+  </div>
+
+  <!-- EXTRA INCOME POPUP MODAL -->
+  <div id="incomeModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-finSurface border border-finBorder rounded-xl p-5 shadow-xl max-w-sm w-full">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-base font-bold tracking-tight">Add Extra Income</h2>
+        <button id="closeIncomeModalBtn" class="text-finMuted hover:text-finText font-bold text-sm">✕</button>
+      </div>
+      <form id="incomeForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-finMuted uppercase tracking-wider mb-1">Income Amount (₹)</label>
+          <input type="number" id="extraIncomeInput" required placeholder="e.g., Overtime, Bonus" class="w-full border border-finBorder rounded-lg p-2 text-sm focus:outline-none focus:border-finPrimary bg-finBg">
+        </div>
+        <div class="flex gap-2 justify-end pt-2">
+          <button type="button" id="cancelIncomeModalBtn" class="bg-finBg hover:bg-slate-200 border border-finBorder text-finText font-semibold py-2 px-4 rounded-lg text-sm transition">Cancel</button>
+          <button type="submit" class="bg-finSuccess text-white font-semibold py-2 px-4 rounded-lg hover:bg-emerald-700 transition shadow-sm text-sm">Inject Income</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let appData = {
+      salary: 0,
+      extraIncome: 0,
+      expenses: []
+    };
+
+    const initialScreen = document.getElementById('initialScreen');
+    const mainApp = document.getElementById('mainApp');
+    const initSalaryInput = document.getElementById('initSalaryInput');
+    const startFreshBtn = document.getElementById('startFreshBtn');
+    const fileInput = document.getElementById('fileInput');
+    
+    const totalSalaryDisplay = document.getElementById('totalSalaryDisplay');
+    const totalExpensesDisplay = document.getElementById('totalExpensesDisplay');
+    const remainingBalanceDisplay = document.getElementById('remainingBalanceDisplay');
+    
+    // Dropdown breakdown fields
+    const incomeDropdown = document.getElementById('incomeDropdown');
+    const dropdownArrow = document.getElementById('dropdownArrow');
+    const breakdownBase = document.getElementById('breakdownBase');
+    const breakdownExtra = document.getElementById('breakdownExtra');
+    const breakdownTotal = document.getElementById('breakdownTotal');
+
+    // Income Modal elements
+    const incomeModal = document.getElementById('incomeModal');
+    const openIncomeModalBtn = document.getElementById('openIncomeModalBtn');
+    const closeIncomeModalBtn = document.getElementById('closeIncomeModalBtn');
+    const cancelIncomeModalBtn = document.getElementById('cancelIncomeModalBtn');
+    const incomeForm = document.getElementById('incomeForm');
+    const extraIncomeInput = document.getElementById('extraIncomeInput');
+
+    const entryForm = document.getElementById('entryForm');
+    const editIdInput = document.getElementById('editId');
+    const amountInput = document.getElementById('amount');
+    const descriptionInput = document.getElementById('description');
+    const formTitle = document.getElementById('formTitle');
+    const submitBtn = document.getElementById('submitBtn');
+
+    const logsTableBody = document.getElementById('logsTableBody');
+    const emptyState = document.getElementById('emptyState');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const createNewBtn = document.getElementById('createNewBtn');
+
+    function init() {
+      const stored = localStorage.getItem('salaryTrackerData');
+      if (stored) {
+        appData = JSON.parse(stored);
+        if (appData.extraIncome === undefined) appData.extraIncome = 0;
+        showMainUi();
+      } else {
+        showInitialUi();
+      }
+    }
+
+    function saveToStorage() {
+      localStorage.setItem('salaryTrackerData', JSON.stringify(appData));
+    }
+
+    function triggerDownload() {
+      const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `salary_tracker_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function showInitialUi() {
+      initialScreen.classList.remove('hidden');
+      mainApp.classList.add('hidden');
+    }
+
+    function showMainUi() {
+      initialScreen.classList.add('hidden');
+      mainApp.classList.remove('hidden');
+      render();
+    }
+
+    // Dropdown Visibility Handler
+    window.toggleIncomeBreakdown = function() {
+      const isHidden = incomeDropdown.classList.contains('hidden');
+      if (isHidden) {
+        incomeDropdown.classList.remove('hidden');
+        dropdownArrow.classList.add('rotate-180');
+      } else {
+        incomeDropdown.classList.add('hidden');
+        dropdownArrow.classList.remove('rotate-180');
+      }
+    };
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      const container = document.getElementById('incomeDisplayContainer');
+      if (!container.contains(e.target)) {
+        incomeDropdown.classList.add('hidden');
+        dropdownArrow.classList.remove('rotate-180');
+      }
+    });
+
+    // Modal Control Handlers
+    openIncomeModalBtn.addEventListener('click', () => {
+      incomeModal.classList.remove('hidden');
+      extraIncomeInput.focus();
+    });
+    const hideModal = () => { incomeModal.classList.add('hidden'); incomeForm.reset(); };
+    closeIncomeModalBtn.addEventListener('click', hideModal);
+    cancelIncomeModalBtn.addEventListener('click', hideModal);
+
+    startFreshBtn.addEventListener('click', () => {
+      const val = parseFloat(initSalaryInput.value);
+      if (val > 0) {
+        appData.salary = val;
+        appData.extraIncome = 0;
+        appData.expenses = [];
+        saveToStorage();
+        showMainUi();
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          if (typeof parsed.salary === 'number' && Array.isArray(parsed.expenses)) {
+            appData = parsed;
+            if (appData.extraIncome === undefined) appData.extraIncome = 0;
+            saveToStorage();
+            showMainUi();
+          } else {
+            alert("Invalid JSON data format.");
+          }
+        } catch (err) {
+          alert("Failed to parse file.");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    incomeForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const additional = parseFloat(extraIncomeInput.value);
+      if (additional > 0) {
+        appData.extraIncome += additional;
+        saveToStorage();
+        hideModal();
+        render();
+      }
+    });
+
+    entryForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const id = editIdInput.value;
+      const amt = parseFloat(amountInput.value);
+      const desc = descriptionInput.value.trim();
+      
+      if (id) {
+        const index = appData.expenses.findIndex(exp => exp.id === id);
+        if (index !== -1) {
+          appData.expenses[index].amount = amt;
+          appData.expenses[index].description = desc;
+        }
+        editIdInput.value = '';
+        formTitle.textContent = "Add New Entry";
+        submitBtn.textContent = "Save Entry";
+      } else {
+        const now = new Date();
+        const formattedDate = now.toLocaleDateString('en-IN') + ' ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        
+        const newExpense = {
+          id: crypto.randomUUID(),
+          amount: amt,
+          description: desc,
+          datetime: formattedDate
+        };
+        appData.expenses.push(newExpense);
+      }
+
+      saveToStorage();
+      entryForm.reset();
+      render();
+    });
+
+    window.editExpense = function(id) {
+      const target = appData.expenses.find(exp => exp.id === id);
+      if (!target) return;
+
+      editIdInput.value = target.id;
+      amountInput.value = target.amount;
+      descriptionInput.value = target.description;
+      
+      formTitle.textContent = "Modify Entry";
+      submitBtn.textContent = "Update Entry";
+      amountInput.focus();
+    };
+
+    window.deleteExpense = function(id) {
+      appData.expenses = appData.expenses.filter(exp => exp.id !== id);
+      saveToStorage();
+      render();
+    };
+
+    createNewBtn.addEventListener('click', () => {
+      if (confirm("Do you want to save/download your current data file before creating a new tracker?")) {
+        triggerDownload();
+      }
+      localStorage.removeItem('salaryTrackerData');
+      initSalaryInput.value = '';
+      fileInput.value = '';
+      init();
+    });
+
+    downloadBtn.addEventListener('click', triggerDownload);
+
+    function render() {
+      const totalPool = appData.salary + appData.extraIncome;
+      const totalExpenses = appData.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const remaining = totalPool - totalExpenses;
+
+      totalSalaryDisplay.textContent = `₹${totalPool.toLocaleString()}`;
+      totalExpensesDisplay.textContent = `₹${totalExpenses.toLocaleString()}`;
+      remainingBalanceDisplay.textContent = `₹${remaining.toLocaleString()}`;
+
+      // Update values in the dropdown panel breakdown
+      breakdownBase.textContent = `₹${appData.salary.toLocaleString()}`;
+      breakdownExtra.textContent = `+₹${appData.extraIncome.toLocaleString()}`;
+      breakdownTotal.textContent = `₹${totalPool.toLocaleString()}`;
+
+      if (remaining < 0) {
+        remainingBalanceDisplay.className = "text-lg font-black text-finDanger";
+      } else {
+        remainingBalanceDisplay.className = "text-lg font-black text-finSuccess";
+      }
+
+      logsTableBody.innerHTML = '';
+      if (appData.expenses.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      appData.expenses.forEach(exp => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-finBg/50 transition-colors";
+        tr.innerHTML = `
+          <td class="p-3 font-semibold text-finText">${exp.description}</td>
+          <td class="p-3 font-bold text-finDanger">₹${exp.amount.toLocaleString()}</td>
+          <td class="p-3 text-xs text-finMuted font-medium">${exp.datetime}</td>
+          <td class="p-3 text-center flex justify-center gap-4">
+            <button onclick="editExpense('${exp.id}')" class="text-finPrimary hover:underline font-bold text-xs">EDIT</button>
+            <button onclick="deleteExpense('${exp.id}')" class="text-finDanger hover:underline font-bold text-xs">DELETE</button>
+          </td>
+        `;
+        logsTableBody.appendChild(tr);
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>
