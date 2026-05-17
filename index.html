@@ -5,16 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Salary & Expense Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-    input[type="number"] {
-      -moz-appearance: textfield;
-    }
-  </style>
   <script>
     tailwind.config = {
       theme: {
@@ -43,7 +33,7 @@
     <div class="mb-6 pb-6 border-b border-finBorder">
       <label class="block text-sm font-bold text-finMuted uppercase mb-2">Option 1: Enter Base Salary</label>
       <div class="flex gap-2">
-        <input type="number" id="initSalaryInput" placeholder="Enter total salary Amount" class="flex-1 border border-finBorder rounded-lg p-2.5 text-sm focus:outline-none focus:border-finPrimary">
+        <input type="text" id="initSalaryInput" placeholder="Enter total salary Amount" class="flex-1 border border-finBorder rounded-lg p-2.5 text-sm focus:outline-none focus:border-finPrimary">
         <button id="startFreshBtn" class="bg-finPrimary text-white font-semibold px-4 rounded-lg text-sm hover:bg-indigo-700 transition">Start</button>
       </div>
     </div>
@@ -106,7 +96,7 @@
         <input type="hidden" id="editId">
         <div>
           <label class="block text-xs font-bold text-finMuted uppercase tracking-wider mb-1">Amount (₹)</label>
-          <input type="number" id="amount" required class="w-full border border-finBorder rounded-lg p-2 text-sm focus:outline-none focus:border-finPrimary bg-finBg">
+          <input type="text" id="amount" required placeholder="e.g., 1,000" class="w-full border border-finBorder rounded-lg p-2 text-sm focus:outline-none focus:border-finPrimary bg-finBg">
         </div>
         <div>
           <label class="block text-xs font-bold text-finMuted uppercase tracking-wider mb-1">What For</label>
@@ -156,7 +146,7 @@
       <form id="incomeForm" class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-finMuted uppercase tracking-wider mb-1">Income Amount (₹)</label>
-          <input type="number" id="extraIncomeInput" required placeholder="e.g., Overtime, Bonus" class="w-full border border-finBorder rounded-lg p-2 text-sm focus:outline-none focus:border-finPrimary bg-finBg">
+          <input type="text" id="extraIncomeInput" required placeholder="e.g., 5,000" class="w-full border border-finBorder rounded-lg p-2 text-sm focus:outline-none focus:border-finPrimary bg-finBg">
         </div>
         <div class="flex gap-2 justify-end pt-2">
           <button type="button" id="cancelIncomeModalBtn" class="bg-finBg hover:bg-slate-200 border border-finBorder text-finText font-semibold py-2 px-4 rounded-lg text-sm transition">Cancel</button>
@@ -183,14 +173,12 @@
     const totalExpensesDisplay = document.getElementById('totalExpensesDisplay');
     const remainingBalanceDisplay = document.getElementById('remainingBalanceDisplay');
     
-    // Dropdown breakdown fields
     const incomeDropdown = document.getElementById('incomeDropdown');
     const dropdownArrow = document.getElementById('dropdownArrow');
     const breakdownBase = document.getElementById('breakdownBase');
     const breakdownExtra = document.getElementById('breakdownExtra');
     const breakdownTotal = document.getElementById('breakdownTotal');
 
-    // Income Modal elements
     const incomeModal = document.getElementById('incomeModal');
     const openIncomeModalBtn = document.getElementById('openIncomeModalBtn');
     const closeIncomeModalBtn = document.getElementById('closeIncomeModalBtn');
@@ -209,6 +197,38 @@
     const emptyState = document.getElementById('emptyState');
     const downloadBtn = document.getElementById('downloadBtn');
     const createNewBtn = document.getElementById('createNewBtn');
+
+    // Helper functions for currency formatting
+    function formatIndianCurrency(numStr) {
+      // Clear non-digits
+      let clean = numStr.replace(/\D/g, '');
+      if (!clean) return '';
+      let lastThree = clean.substring(clean.length - 3);
+      let otherBits = clean.substring(0, clean.length - 3);
+      if (otherBits != '') {
+        lastThree = ',' + lastThree;
+      }
+      return otherBits.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + lastThree;
+    }
+
+    function parseFormattedNumber(str) {
+      let clean = str.replace(/,/g, '');
+      return parseFloat(clean) || 0;
+    }
+
+    // Attach dynamic keyboard/formatting event listeners
+    [initSalaryInput, amountInput, extraIncomeInput].forEach(inputEl => {
+      inputEl.addEventListener('input', (e) => {
+        let cursorPosition = e.target.selectionStart;
+        let originalLength = e.target.value.length;
+        
+        e.target.value = formatIndianCurrency(e.target.value);
+        
+        // Fix cursor jumping to the end when text changes programmatically
+        let newLength = e.target.value.length;
+        e.target.setSelectionRange(cursorPosition + (newLength - originalLength), cursorPosition + (newLength - originalLength));
+      });
+    });
 
     function init() {
       const stored = localStorage.getItem('salaryTrackerData');
@@ -248,7 +268,6 @@
       render();
     }
 
-    // Dropdown Visibility Handler
     window.toggleIncomeBreakdown = function() {
       const isHidden = incomeDropdown.classList.contains('hidden');
       if (isHidden) {
@@ -260,7 +279,6 @@
       }
     };
 
-    // Close dropdown on outside click
     document.addEventListener('click', (e) => {
       const container = document.getElementById('incomeDisplayContainer');
       if (!container.contains(e.target)) {
@@ -269,7 +287,6 @@
       }
     });
 
-    // Modal Control Handlers
     openIncomeModalBtn.addEventListener('click', () => {
       incomeModal.classList.remove('hidden');
       extraIncomeInput.focus();
@@ -279,7 +296,7 @@
     cancelIncomeModalBtn.addEventListener('click', hideModal);
 
     startFreshBtn.addEventListener('click', () => {
-      const val = parseFloat(initSalaryInput.value);
+      const val = parseFormattedNumber(initSalaryInput.value);
       if (val > 0) {
         appData.salary = val;
         appData.extraIncome = 0;
@@ -314,7 +331,7 @@
 
     incomeForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const additional = parseFloat(extraIncomeInput.value);
+      const additional = parseFormattedNumber(extraIncomeInput.value);
       if (additional > 0) {
         appData.extraIncome += additional;
         saveToStorage();
@@ -327,7 +344,7 @@
       e.preventDefault();
       
       const id = editIdInput.value;
-      const amt = parseFloat(amountInput.value);
+      const amt = parseFormattedNumber(amountInput.value);
       const desc = descriptionInput.value.trim();
       
       if (id) {
@@ -362,7 +379,8 @@
       if (!target) return;
 
       editIdInput.value = target.id;
-      amountInput.value = target.amount;
+      amountInput.value = target.amount.toString();
+      amountInput.value = formatIndianCurrency(amountInput.value); // format for edit
       descriptionInput.value = target.description;
       
       formTitle.textContent = "Modify Entry";
@@ -393,14 +411,13 @@
       const totalExpenses = appData.expenses.reduce((sum, exp) => sum + exp.amount, 0);
       const remaining = totalPool - totalExpenses;
 
-      totalSalaryDisplay.textContent = `₹${totalPool.toLocaleString()}`;
-      totalExpensesDisplay.textContent = `₹${totalExpenses.toLocaleString()}`;
-      remainingBalanceDisplay.textContent = `₹${remaining.toLocaleString()}`;
+      totalSalaryDisplay.textContent = `₹${totalPool.toLocaleString('en-IN')}`;
+      totalExpensesDisplay.textContent = `₹${totalExpenses.toLocaleString('en-IN')}`;
+      remainingBalanceDisplay.textContent = `₹${remaining.toLocaleString('en-IN')}`;
 
-      // Update values in the dropdown panel breakdown
-      breakdownBase.textContent = `₹${appData.salary.toLocaleString()}`;
-      breakdownExtra.textContent = `+₹${appData.extraIncome.toLocaleString()}`;
-      breakdownTotal.textContent = `₹${totalPool.toLocaleString()}`;
+      breakdownBase.textContent = `₹${appData.salary.toLocaleString('en-IN')}`;
+      breakdownExtra.textContent = `+₹${appData.extraIncome.toLocaleString('en-IN')}`;
+      breakdownTotal.textContent = `₹${totalPool.toLocaleString('en-IN')}`;
 
       if (remaining < 0) {
         remainingBalanceDisplay.className = "text-lg font-black text-finDanger";
@@ -420,7 +437,7 @@
         tr.className = "hover:bg-finBg/50 transition-colors";
         tr.innerHTML = `
           <td class="p-3 font-semibold text-finText">${exp.description}</td>
-          <td class="p-3 font-bold text-finDanger">₹${exp.amount.toLocaleString()}</td>
+          <td class="p-3 font-bold text-finDanger">₹${exp.amount.toLocaleString('en-IN')}</td>
           <td class="p-3 text-xs text-finMuted font-medium">${exp.datetime}</td>
           <td class="p-3 text-center flex justify-center gap-4">
             <button onclick="editExpense('${exp.id}')" class="text-finPrimary hover:underline font-bold text-xs">EDIT</button>
